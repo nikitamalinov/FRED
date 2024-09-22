@@ -3,10 +3,7 @@ import streamlit as st
 
 
 def main(): 
-    x = 1   
-    # vix.show()
-    # spaxx.show()
-    # cpi.show()
+    st.write("Welcome to the Financial Dashboard")
     
 
 if __name__ == "__main__":
