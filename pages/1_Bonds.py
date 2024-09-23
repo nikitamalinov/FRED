@@ -149,5 +149,7 @@ df = pd.DataFrame(data)
 df.index = df.index + 1
 
 
-st.write("Ben Graham Descriptions")
+st.write(
+    'Inspired by Jason Zweig "The Wide World of Bonds" table from The Intelligent Investor pg 108-109'
+)
 st.dataframe(df, use_container_width=True)

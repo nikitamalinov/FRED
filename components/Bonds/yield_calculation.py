@@ -27,7 +27,7 @@ def federalTaxAdjustedInvestmentReturn(investment_return, annual_income):
             total_taxes += left_over_income_to_tax * federal_income_tax_brackets[key]
             break
 
-    return total_taxes * (investment_return / annual_income)
+    return total_taxes * (investment_return / (investment_return + annual_income))
 
 
 california_income_tax_brackets = {
@@ -57,7 +57,7 @@ def stateTaxAdjustedInvestmentReturn(investment_return, annual_income):
             total_taxes += left_over_income_to_tax * california_income_tax_brackets[key]
             break
 
-    return total_taxes * (investment_return / annual_income)
+    return total_taxes * (investment_return / (investment_return + annual_income))
 
 
 def show():
@@ -79,6 +79,8 @@ def show():
         "State Income tax",
         "State and Federal Income Tax for interest and capital gains for appreciation",
         "State and Federal Income Tax for interest and capital gains for appreciation",
+        "State and Federal Income Tax for interest and capital gains for appreciation",
+        "State and Federal Income Tax for interest and capital gains for appreciation",
     ]
 
     bonds = {
@@ -96,7 +98,11 @@ def show():
             "10-yr Municipal bonds",
             # "Preferred stock",
             'High-yield ("junk") bonds (JNK)',  # https://finance.yahoo.com/quote/JNK/ or FRED https://fred.stlouisfed.org/series/BAMLH0A0HYM2EY
-            "Emerging-markets debt",  # https://fred.stlouisfed.org/series/BAMLEMHBHYCRPIOAS
+            "Emerging-markets debt", 
+            # BTC Lending
+            "USDC Lending",
+            # REIT returns
+            "VTEB",
         ],
         "Yield": [
             4.65,
@@ -112,6 +118,8 @@ def show():
             3.54,
             6.66,
             3.95,
+            5.20,
+            3.26,
         ],
         "Total Return": [],
         "Total Return after Taxes": [],
@@ -129,6 +137,8 @@ def show():
             None,
             97.74,
             None,
+            1,
+            51.04,
         ],
         "Expense Ratio": [
             None,
@@ -144,50 +154,68 @@ def show():
             None,
             0.0040,
             None,
+            None,
+            0.005,
+        ],
+        "Source": [
+            "https://www.bloomberg.com/markets/rates-bonds/government-bonds/us",
+            "https://www.bloomberg.com/markets/rates-bonds/government-bonds/us",
+            "https://www.bloomberg.com/markets/rates-bonds/government-bonds/us",
+            "https://www.bloomberg.com/markets/rates-bonds/government-bonds/us",
+            "https://www.treasurydirect.gov/savings-bonds/i-bonds/i-bonds-interest-rates/#:~:text=The%20composite%20rate%20for%20I,through%20October%202024%20is%204.28%25.",
+            "https://www.bankrate.com/banking/cds/cd-rates/",
+            "https://www.schwab.com/money-market-funds",
+            "https://www.ishares.com/us/products/239465/ishares-mbs-etf",
+            "https://www.bloomberg.com/markets/rates-bonds/government-bonds/us",
+            "https://www.bloomberg.com/markets/rates-bonds/government-bonds/us",
+            "https://www.bloomberg.com/markets/rates-bonds/government-bonds/us",
+            # "Preferred stock",
+            "https://finance.yahoo.com/quote/JNK/",  # or FRED https://fred.stlouisfed.org/series/BAMLH0A0HYM2EY
+            "https://fred.stlouisfed.org/series/BAMLEMHBHYCRPIOAS",
+            "https://www.coinbase.com/usdc",
+            "https://investor.vanguard.com/investment-products/etfs/profile/vteb",
         ],
     }
 
     for i in range(len(bonds["Type"])):
-
-        apr = bonds["Yield"][i]
+        apr: float = bonds["Yield"][i]
         if bonds["Expense Ratio"][i] != None:
             apr = bonds["Yield"][i] - bonds["Expense Ratio"][i]
 
-        total_return_on_investment = (
-            principal_amount * (1 + apr / 100) ** number_of_years
-        ) - principal_amount
-        bonds["Total Return"].append(total_return_on_investment)
+        total_return_on_investment = principal_amount
+        cumulative_taxes_paid = 0
 
-        federal_tax_adjusted_return = federalTaxAdjustedInvestmentReturn(
-            total_return_on_investment, annual_income
+        for year in range(1, number_of_years + 1):
+            annual_return = total_return_on_investment * (apr / 100)
+
+            federal_tax = federalTaxAdjustedInvestmentReturn(
+                annual_return, annual_income
+            )
+            state_tax = stateTaxAdjustedInvestmentReturn(annual_return, annual_income)
+
+            if taxes[i] == "Federal Income Tax":
+                annual_return_after_tax = annual_return - federal_tax
+            elif taxes[i] == "State Income tax":
+                annual_return_after_tax = annual_return - state_tax
+            elif taxes[i] in [
+                "State and Federal Income Tax",
+                "State and Federal Income Tax for interest and capital gains for appreciation",
+            ]:
+                annual_return_after_tax = annual_return - federal_tax - state_tax
+
+            total_return_on_investment += annual_return_after_tax
+            cumulative_taxes_paid += federal_tax + state_tax
+
+        final_return = total_return_on_investment - principal_amount
+        bonds["Total Return"].append(
+            (principal_amount * (1 + apr / 100) ** number_of_years) - principal_amount
         )
-        state_tax_adjusted_return = stateTaxAdjustedInvestmentReturn(
-            total_return_on_investment, annual_income
-        )
 
-        if taxes[i] == "Federal Income Tax":
-            bonds["Total Return after Taxes"].append(
-                total_return_on_investment - federal_tax_adjusted_return
-            )
-
-        elif taxes[i] == "State Income tax":
-            bonds["Total Return after Taxes"].append(
-                total_return_on_investment - state_tax_adjusted_return
-            )
-
-        elif (
-            taxes[i] == "State and Federal Income Tax"
-            or taxes[i]
-            == "State and Federal Income Tax for interest and capital gains for appreciation"
-        ):
-            bonds["Total Return after Taxes"].append(
-                total_return_on_investment
-                - federal_tax_adjusted_return
-                - state_tax_adjusted_return
-            )
+        # Subtract the taxes from the total return
+        bonds["Total Return after Taxes"].append(final_return)
 
     df = pd.DataFrame(bonds)
     df.index = df.index + 1
 
-    st.write("Yield and calculated return")
+    st.write("Bond and Dividend Yield and calculated return")
     st.dataframe(df, use_container_width=True)
